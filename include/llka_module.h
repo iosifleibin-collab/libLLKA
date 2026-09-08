@@ -216,7 +216,9 @@
  * exported by library B were not guarded by an LLKA_IMPORT_INTERNAL block,
  * library A would export symbols from both A and B which is not what we want.
  *
- * Clear? ...yeah, didn't think so.
+ * Clear? ...yeah, didn't think so. 
+ * 
+ * :-)
  */
 
 /* Additional platform-dependent definitions */

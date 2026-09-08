@@ -3,9 +3,15 @@
 
 #cmakedefine LLKA_PLATFORM_WIN32
 #cmakedefine LLKA_PLATFORM_UNIX
-#cmakedefine LLKA_PLATFORM_EMSCRIPTEN
 
 #cmakedefine LLKA_STATIC_BUILD
 #cmakedefine LLKA_DLL_BUILD
+
+/* Compiler detection macros */
+#cmakedefine LLKA_COMPILER_GCC_LIKE
+#cmakedefine LLKA_COMPILER_MINGW
+#cmakedefine LLKA_COMPILER_MSYS
+#cmakedefine LLKA_COMPILER_MSVC
+#cmakedefine LLKA_HAVE_SAD_LADY_COMPILER
 
 #endif /* _LLKA_CONFIG_H */

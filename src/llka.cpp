@@ -18,16 +18,6 @@ void LLKA_CC LLKA_initMatrix(size_t rows, size_t cols, LLKA_Matrix *matrix)
     matrix->nCols = cols;
 }
 
-LLKA_Matrix LLKA_CC LLKA_duplicateMatrix(const LLKA_Matrix *matrix)
-{
-    LLKA_Matrix dup;
-    LLKA_initMatrix(matrix->nRows, matrix->nCols, &dup);
-
-    std::memcpy(dup.data, matrix->data, sizeof(double) * matrix->nRows * matrix->nCols);
-
-    return dup;
-}
-
 void LLKA_CC LLKA_destroyPoints(const LLKA_Points *points)
 {
     delete [] points->points;
@@ -64,25 +54,6 @@ const char * LLKA_CC LLKA_errorToString(LLKA_RetCode tRet)
     return "Unknown return code";
 }
 
-LLKA_Points LLKA_CC LLKA_makePoints(const LLKA_Point *points, size_t nPoints)
-{
-    LLKA_Points pts{
-        .points = nullptr,
-        .nPoints = nPoints
-    };
-
-    if (nPoints < 1)
-        return pts;
-
-    // TODO: We need to allocate aligned and padded memory blocks here
-    pts.points = new LLKA_Point[nPoints];
-    for (size_t idx = 0; idx < nPoints; idx++)
-        pts.points[idx] = points[idx];
-
-    return pts;
-}
-
-
 LLKA_Points LLKA_CC LLKA_zeroPoints(size_t nPoints)
 {
     if (nPoints == 0) {
@@ -92,7 +63,6 @@ LLKA_Points LLKA_CC LLKA_zeroPoints(size_t nPoints)
         };
     }
 
-    // TODO: We need to allocate aligned and padded memory blocks here
     LLKA_Points pts{
         .points = new LLKA_Point[nPoints],
         .nPoints = nPoints

@@ -3,9 +3,6 @@
 #ifdef __cplusplus
 
 #include <llka_config.h>
-#ifdef LLKA_PLATFORM_EMSCRIPTEN
-#define LLKA_GENERATE_EMSCRIPTEN_BINDINGS
-#endif // LLKA_PLATFORM_EMSCRIPTEN
 
 #include <llka_cpp.h>
 #include <llka_nucleotide.h>
@@ -13,7 +10,6 @@
 #include <llka_superposition.h>
 #include <llka_tracing.h>
 
-#include <segmentation.h>
 #include <util/geometry.h>
 
 #include <algorithm>
@@ -571,82 +567,6 @@ auto superpositionMatrix(StructureView &what, const StructureView &onto) noexcep
     return RCResult<Matrix>::succeed(std::move(matrix));
 }
 
-#ifdef LLKA_PLATFORM_EMSCRIPTEN
-StructureSegments::StructureSegments() noexcept :
-    structure{nullptr}
-{}
-#endif // LLKA_PLATFORM_EMSCRIPTEN
-
-//
-// Segmentation
-//
-
-StructureSegments::StructureSegments(Structure &structure) noexcept :
-    structure{&structure}
-{
-    auto counts = LLKAInternal::countAtomsForSegmentation(structure.data(), structure.size());
-
-    // Prepare the mapping
-    for (auto cntModelIt = counts.cbegin(); cntModelIt != counts.cend(); cntModelIt++) {
-        models.emplace(cntModelIt->first, Model{});
-        const auto &cntModel = cntModelIt->second;
-        auto &model = models.at(cntModelIt->first);
-#ifndef LLKA_PLATFORM_EMSCRIPTEN
-        model.atoms.reserve(cntModel.nAtoms);
-#endif // LLKA_PLATFORM_EMSCRIPTEN
-
-        for (auto cntChainIt = cntModel.chains.cbegin(); cntChainIt != cntModel.chains.cend(); cntChainIt++) {
-            model.chains.emplace(cntChainIt->first, Chain{});
-            const auto &cntChain = cntChainIt->second;
-            auto &chain = model.chains.at(cntChainIt->first);
-#ifndef LLKA_PLATFORM_EMSCRIPTEN
-            chain.atoms.reserve(cntChain.nAtoms);
-#endif // LLKA_PLATFORM_EMSCRIPTEN
-
-            for (auto cntResidueIt = cntChain.residues.cbegin(); cntResidueIt != cntChain.residues.cend(); cntResidueIt++) {
-                chain.residues.emplace(cntResidueIt->first, Residue{});
-                const auto &cntResidue = cntResidueIt->second; // cntResidue is just the number of atoms in the residue
-                chain.residues.at(cntResidueIt->first).atoms.reserve(cntResidue);
-            }
-        }
-    }
-
-    // Do the mapping
-    for (auto &atom : structure) {
-#ifdef LLKA_PLATFORM_EMSCRIPTEN
-        auto atomPtr = atom;
-#else
-        auto *atomPtr = &atom;
-#endif // LLKA_PLATFORM_EMSCRIPTEN
-
-        auto &model = models.at(atom.pdbx_PDB_model_num);
-        auto &chain = model.chains.at(atom.label_asym_id);
-        auto &residue = chain.residues.at(atom.label_seq_id);
-
-#ifndef LLKA_PLATFORM_EMSCRIPTEN
-        model.atoms.push_back(atomPtr);
-        chain.atoms.push_back(atomPtr);
-#endif // LLKA_PLATFORM_EMSCRIPTEN
-        residue.atoms.push_back(atomPtr);
-    }
-}
-
-_EMX_GET_SET_DEF(StructureSegments::Models, StructureSegments, models)
-#ifdef LLKA_PLATFORM_EMSCRIPTEN
-auto StructureSegments::_emsGet_structure() const -> const Structure &
-{
-    return *this->structure;
-}
-#endif // LLKA_PLATFORM_EMSCRIPTEN
-
-//
-// NtC
-//
-
-_EMX_GET_SET_DEF(std::string, AtomNameQuad, a)
-_EMX_GET_SET_DEF(std::string, AtomNameQuad, b)
-_EMX_GET_SET_DEF(std::string, AtomNameQuad, c)
-_EMX_GET_SET_DEF(std::string, AtomNameQuad, d)
 
 auto backboneAtomIndex(const BackboneAtom &bkbnAtom, const Structure &backbone) noexcept -> size_t
 {
