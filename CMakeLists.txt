@@ -15,33 +15,6 @@ set(USE_ADDRESS_SANITIZER OFF CACHE BOOL "Use AddressSanitizer (supported only w
 set(BUILD_TESTING ON CACHE BOOL "Build tests")
 set(BUILD_EXAMPLES ON CACHE BOOL "Build examples")
 set(BUILD_PYTHON_BINDINGS OFF CACHE BOOL "Build Python bindings")
-if (EMSCRIPTEN)
-    set(
-        EMX_JS_BUILD_MODE
-        "ES6"
-        CACHE STRING
-        "How to build thd JavaScript module. Use 'Node' or 'Node_SIMD' for module that can be directly run in node, 'ES6' to build an ES6 module, 'ES6_NOSIMD' to build the ES6 module without SIMD code or 'ES6_NOWASM' to build the ES6 module as plain JavaScript code"
-    )
-    set(
-        DNATCO_EXTRAS
-        ON
-        CACHE BOOL
-        "Additional helper functions specific for the DNATCO tool"
-    )
-    set(
-        ENABLE_WASM_PROFILING
-        OFF
-        CACHE BOOL
-        "Generate DRAWF debugging information to enable profiling"
-    )
-else ()
-    set(
-        DNATCO_EXTRAS
-        OFF
-        CACHE BOOL
-        "Additional helper functions specific for the DNATCO tool"
-    )
-endif ()
 
 if (BUILD_STATIC_LIBRARY AND BUILD_SHARED_LIBRARY)
     message(
@@ -61,80 +34,7 @@ if (BUILD_STATIC_LIBRARY)
     set("LLKA_STATIC_BUILD" "1")
 endif()
 
-if (EMSCRIPTEN)
-    set(BUILD_STATIC_LIBRARY ON)
-    set(BUILD_SHARED_LIBRARY OFF)
-
-    set("LLKA_PLATFORM_EMSCRIPTEN" "1")
-    set(LIBLLKA_PLATFORM_DEFINITIONS -DLLKA_COMPILER_GCC_LIKE)
-
-    if (EMX_JS_BUILD_MODE STREQUAL "Node")
-        set(EMX_EMCC_WASM 1)
-        set(EMX_EMCC_MODULARIZE 1)
-        set(EMX_EMCC_ES6 0)
-        set(EMX_EMCC_SIMD 0)
-        set(EMX_EMCC_ENV node)
-        set(EMX_EMCC_SUFFIX js)
-        set(EMX_EMCC_NODERAWFS 1)
-        add_link_options(-lnodefs.js -lnoderawfs.js)
-    elseif (EMX_JS_BUILD_MODE STREQUAL "Node_SIMD")
-        set(EMX_EMCC_WASM 1)
-        set(EMX_EMCC_MODULARIZE 1)
-        set(EMX_EMCC_ES6 0)
-        set(EMX_EMCC_SIMD 1)
-        set(EMX_EMCC_ENV node)
-        set(EMX_EMCC_SUFFIX js)
-        set(EMX_EMCC_NODERAWFS 1)
-        add_definitions(-DLLKA_USE_SIMD_WASM)
-        add_link_options(-lnodefs.js -lnoderawfs.js)
-    elseif (EMX_JS_BUILD_MODE STREQUAL "ES6")
-        set(EMX_EMCC_WASM 1)
-        set(EMX_EMCC_MODULARIZE 1)
-        set(EMX_EMCC_ES6 1)
-        set(EMX_EMCC_SIMD 1)
-        set(EMX_EMCC_ENV web)
-        set(EMX_EMCC_SUFFIX js)
-        set(EMX_EMCC_NODERAWFS 0)
-        add_definitions(-DLLKA_FILESYSTEM_ACCESS_DISABLED)
-    elseif (EMX_JS_BUILD_MODE STREQUAL "ES6_NOWASM")
-        set(EMX_EMCC_WASM 0)
-        set(EMX_EMCC_MODULARIZE 1)
-        set(EMX_EMCC_ES6 1)
-        set(EMX_EMCC_SIMD 0)
-        set(EMX_EMCC_ENV web)
-        set(EMX_EMCC_SUFFIX js)
-        set(EMX_EMCC_NODERAWFS 0)
-        add_definitions(-DLLKA_FILESYSTEM_ACCESS_DISABLED)
-    elseif (EMX_JS_BUILD_MODE STREQUAL "ES6_NOSIMD")
-        set(EMX_EMCC_WASM 1)
-        set(EMX_EMCC_MODULARIZE 1)
-        set(EMX_EMCC_ES6 1)
-        set(EMX_EMCC_SIMD 0)
-        set(EMX_EMCC_ENV web)
-        set(EMX_EMCC_SUFFIX js)
-        set(EMX_EMCC_NODERAWFS 0)
-        add_definitions(-DLLKA_FILESYSTEM_ACCESS_DISABLED)
-    elseif (EMX_JS_BUILD_MODE STREQUAL "WEBWORKER")
-        set(EMX_EMCC_WASM 1)
-        set(EMX_EMCC_MODULARIZE 1)
-        set(EMX_EMCC_ES6 0)
-        set(EMX_EMCC_SIMD 1)
-        set(EMX_EMCC_ENV web,worker)
-        set(EMX_EMCC_SUFFIX js)
-        set(EMX_EMCC_NODERAWFS 0)
-        add_definitions(-DLLKA_FILESYSTEM_ACCESS_DISABLED)
-    else()
-        message(FATAL_ERROR "EMX_JS_BUILD_MODE ${EMX_JS_BUILD_MODE} is an invalid Emscripten build mode")
-    endif ()
-
-    # I honestly do not know if NO_DISABLE_EXCEPTION_CATCHING must passed both to the compiler and binding generator.
-    # Passing it to both makes C++ try {} catch {} work. You may want to revise this at some point.
-    add_compile_options(-fexceptions -Wall -Wextra -pedantic -Wno-unused-function -fvisibility=hidden -fcolor-diagnostics)
-
-    if (EMX_EMCC_SIMD EQUAL 1)
-        add_compile_options(-msimd128)
-    endif ()
-elseif (WIN32)
+if (WIN32)
     set("LLKA_PLATFORM_WIN32" "1")
 
     set(LIBLLKA_PLATFORM_DEFINITIONS "${LIBLLKA_PLATFORM_DEFINITIONS}" -DWIN32_LEAN_AND_MEAN -DNOMINMAX)
@@ -155,8 +55,10 @@ elseif (WIN32)
 
         if (MINGW)
             set(LIBLLKA_PLATFORM_DEFINITIONS -DLLKA_COMPILER_MINGW)
+            set(LLKA_COMPILER_MINGW 1)
         else ()
             set(LIBLLKA_PLATFORM_DEFINITIONS -DLLKA_COMPILER_MSYS)
+            set(LLKA_COMPILER_MSYS 1)
         endif ()
 
         set(DEFAULT_SYMVER_LINK "-Wl,--default-symver")
@@ -171,6 +73,8 @@ elseif (WIN32)
         set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "/debug /INCREMENTAL:NO /LTCG")
         set(CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO "/debug /INCREMENTAL:NO /LTCG")
         set(LIBLLKA_PLATFORM_DEFINITIONS "${LIBLLKA_PLATFORM_DEFINITIONS}" -DLLKA_COMPILER_MSVC -DLLKA_HAVE_SAD_LADY_COMPILER -DUNICODE -D_UNICODE)
+        set(LLKA_COMPILER_MSVC 1)
+        set(LLKA_HAVE_SAD_LADY_COMPILER 1)
         set(DEFAULT_SYMVER_LINK " ")
     else()
         message(FATAL_ERROR "Compiler not recognized or not supported")
@@ -210,6 +114,7 @@ elseif (UNIX)
 
         set(LIBLLKA_PLATFORM_DEFINITIONS -DLLKA_COMPILER_GCC_LIKE)
         set(DEFAULT_SYMVER_LINK "-Wl,--default-symver")
+        set(LLKA_COMPILER_GCC_LIKE 1)
     endif ()
 else()
     message(FATAL_ERROR "Platform not recognized or not supported")
@@ -229,8 +134,6 @@ include_directories(
 
 set(
     libLLKA_SRCS
-    "src/minicif/parser.cpp"
-    "src/minicif/writer.cpp"
     "src/util/elementaries.cpp"
     "src/util/geometry.cpp"
     "src/util/geometry_cpp.cpp"
@@ -240,7 +143,6 @@ set(
     "src/extend.cpp"
     "src/extract.cpp"
     "src/measurements.cpp"
-    "src/minicif.cpp"
     "src/ntc.cpp"
     "src/ntc_bones.cpp"
     "src/ntc_constants.cpp"
@@ -261,7 +163,6 @@ set(
     "include/llka_cpp.h"
     "include/llka_connectivity_similarity.h"
     "include/llka_main.h"
-    "include/llka_minicif.h"
     "include/llka_measurements.h"
     "include/llka_module.h"
     "include/llka_ntc.h"
@@ -286,80 +187,32 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/llka_config.h.in" "${CMAKE_C
 
 set(LLKA_TARGETS "")
 
-if (EMSCRIPTEN)
-    if (EMX_JS_BUILD_MODE STREQUAL "ES6_NOWASM")
-        set(WASM_SUFFIX "_nowasm")
-        set(TARGET_OUTPUT_NAME LLKA_nowasm)
-    elseif (EMX_JS_BUILD_MODE STREQUAL "ES6_NOSIMD")
-        set(WASM_SUFFIX "_nosimd")
-        set(TARGET_OUTPUT_NAME LLKA_nosimd)
-    elseif ((EMX_JS_BUILD_MODE STREQUAL "Node") OR (EMX_JS_BUILD_MODE STREQUAL "Node_SIMD"))
-        set(WASM_SUFFIX "_node")
-        set(TARGET_OUTPUT_NAME LLKA_node)
-    else ()
-        set(WASM_SUFFIX "")
-        set(TARGET_OUTPUT_NAME LLKA)
-    endif ()
-
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
-        set(EMX_OPTIFLAGS "-g -Og")
-    else ()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -flto")
-        set(EMX_OPTIFLAGS "-O3")
-        set(EMX_OPTIFLAGS_LTO "-flto")
-    endif ()
-
-    if (ENABLE_WASM_PROFILING)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
-        set(EMX_OPTIFLAGS "-g")
-    endif ()
-
+if (BUILD_STATIC_LIBRARY)
     add_library(libLLKA_STATIC STATIC ${libLLKA_SRCS})
     set_target_properties(
         libLLKA_STATIC
-        PROPERTIES
-            OUTPUT_NAME ${TARGET_OUTPUT_NAME}
-            LINK_OPTIONS "--bind -fexceptions -sNO_DISABLE_EXCEPTION_CATCHING -sNODERAWFS=${EMX_EMCC_NODERAWFS} -sENVIRONMENT=${EMX_EMCC_ENV} -sWASM=${EMX_EMCC_WASM} -sALLOW_MEMORY_GROWTH -sMODULARIZE=${EMX_EMCC_MODULARIZE} -sEXPORT_ES6=${EMX_EMCC_ES6} -sEXPORT_NAME=createLLKAModule ${EMX_OPTIFLAGS} ${EMX_OPTIFLAGS_LTO}"
+        PROPERTIES OUTPUT_NAME LLKA
+        LINK_FLAGS ${DEFAULT_SYMVER_LINK}
     )
     target_compile_definitions(libLLKA_STATIC PRIVATE ${LIBLLKA_GLOBAL_DEFINITIONS} ${LIBLLKA_PLATFORM_DEFINITIONS})
     target_link_libraries(libLLKA_STATIC ${LLKA_EXTRA_LINK_LIBS})
 
     set(LLKA_TARGETS ${LLKA_TARGETS} libLLKA_STATIC)
+endif ()
 
-    add_custom_command(
-        TARGET libLLKA_STATIC POST_BUILD
-        COMMAND em++ --bind -fexceptions -sNODERAWFS=${EMX_EMCC_NODERAWFS} -sENVIRONMENT=${EMX_EMCC_ENV} -sWASM=${EMX_EMCC_WASM} -sALLOW_MEMORY_GROWTH -sMODULARIZE=${EMX_EMCC_MODULARIZE} -sEXPORT_ES6=${EMX_EMCC_ES6} -sEXPORT_NAME=createLLKAModule ${EMX_OPTIFLAGS} ${EMX_OPTIFLAGS_LTO} -o "${CMAKE_CURRENT_BINARY_DIR}/libLLKA${WASM_SUFFIX}.${EMX_EMCC_SUFFIX}" -Wl,--whole-archive "${CMAKE_CURRENT_BINARY_DIR}/libLLKA${WASM_SUFFIX}.a" -Wl,--no-whole-archive
-        COMMENT "Generating JavaScript bindings"
+if (BUILD_SHARED_LIBRARY)
+    add_library(libLLKA_SHARED SHARED ${libLLKA_SRCS})
+    set_target_properties(
+        libLLKA_SHARED
+        PROPERTIES VERSION 0.1
+                    SOVERSION 0.1
+                    OUTPUT_NAME LLKA
+                    LINK_FLAGS ${DEFAULT_SYMVER_LINK}
     )
-else ()
-    if (BUILD_STATIC_LIBRARY)
-        add_library(libLLKA_STATIC STATIC ${libLLKA_SRCS})
-        set_target_properties(
-            libLLKA_STATIC
-            PROPERTIES OUTPUT_NAME LLKA
-            LINK_FLAGS ${DEFAULT_SYMVER_LINK}
-        )
-        target_compile_definitions(libLLKA_STATIC PRIVATE ${LIBLLKA_GLOBAL_DEFINITIONS} ${LIBLLKA_PLATFORM_DEFINITIONS})
-        target_link_libraries(libLLKA_STATIC ${LLKA_EXTRA_LINK_LIBS})
+    target_compile_definitions(libLLKA_SHARED PRIVATE ${LIBLLKA_GLOBAL_DEFINITIONS} ${LIBLLKA_PLATFORM_DEFINITIONS})
+    target_link_libraries(libLLKA_SHARED ${LLKA_EXTRA_LINK_LIBS})
 
-        set(LLKA_TARGETS ${LLKA_TARGETS} libLLKA_STATIC)
-    endif ()
-
-    if (BUILD_SHARED_LIBRARY)
-        add_library(libLLKA_SHARED SHARED ${libLLKA_SRCS})
-        set_target_properties(
-            libLLKA_SHARED
-            PROPERTIES VERSION 0.1
-                       SOVERSION 0.1
-                       OUTPUT_NAME LLKA
-                       LINK_FLAGS ${DEFAULT_SYMVER_LINK}
-        )
-        target_compile_definitions(libLLKA_SHARED PRIVATE ${LIBLLKA_GLOBAL_DEFINITIONS} ${LIBLLKA_PLATFORM_DEFINITIONS})
-        target_link_libraries(libLLKA_SHARED ${LLKA_EXTRA_LINK_LIBS})
-
-        set(LLKA_TARGETS ${LLKA_TARGETS} libLLKA_SHARED)
-    endif ()
+    set(LLKA_TARGETS ${LLKA_TARGETS} libLLKA_SHARED)
 endif ()
 
 if (UNIX)
@@ -395,19 +248,6 @@ if (DNATCO_EXTRAS)
     )
 endif ()
 
-if (EMSCRIPTEN)
-    install(
-        FILES "${CMAKE_CURRENT_BINARY_DIR}/libLLKA${WASM_SUFFIX}.${EMX_EMCC_SUFFIX}"
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-    )
-    if (EMX_EMCC_WASM EQUAL 1)
-        install(
-            FILES "${CMAKE_CURRENT_BINARY_DIR}/libLLKA${WASM_SUFFIX}.wasm"
-            DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-        )
-    endif ()
-endif ()
-
 if (BUILD_TESTING)
     include(CTest)
     add_subdirectory("tests")
@@ -429,7 +269,7 @@ endif ()
 
 include(CMakePackageConfigHelpers)
 configure_package_config_file(
-    "${CMAKE_SOURCE_DIR}/cmake/LLKAConfig.cmake.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/LLKAConfig.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/cmake/LLKAConfigForInstall.cmake"
     INSTALL_DESTINATION "${LIBLLKA_CMAKE_DIR}"
     PATH_VARS
@@ -451,7 +291,7 @@ else ()
 endif ()
 
 configure_file(
-    "${CMAKE_SOURCE_DIR}/cmake/pkgconfig/llka.pc.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/pkgconfig/llka.pc.in"
     "${CMAKE_CURRENT_BINARY_DIR}/cmake/pkgconfig/llka.pc" @ONLY
 )
 install(
